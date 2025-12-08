@@ -1,0 +1,40 @@
+# Dataset files (too large for GitHub, download via kagglehub)
+data/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+venv/
+env/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Kaggle credentials (sensitive!)
+kaggle.json
+
+# Large model files (optional - uncomment if you want to exclude)
+# output/*.keras
+
+# Logs
+*.log
+
+# Research papers (keep local only)
+*.docx
+*.pdf
+
