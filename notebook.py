@@ -2,7 +2,7 @@ import os, sys
 
 # Must run before importing tensorflow in this runtime
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"   # reduce TF logs
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # CPU-only to avoid GPU init noise
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Uncomment to force CPU-only
 
 if "tensorflow" in sys.modules:
     print("WARNING: TensorFlow was already imported. Use 'Restart Session' and run Cell 0 first.")
@@ -12,6 +12,33 @@ print("TensorFlow:", tf.__version__)
 print("GPUs:", tf.config.list_physical_devices("GPU"))
 
 import pandas as pd
+
+# Auto-download dataset if not present
+data_dir = "./data/InSDN_DatasetCSV"
+if not os.path.exists(data_dir):
+    print("Dataset not found locally. Downloading from Kaggle...")
+    try:
+        import kagglehub
+        import shutil
+        
+        # Download dataset using kagglehub
+        downloaded_path = kagglehub.dataset_download("badcodebuilder/insdn-dataset")
+        source_path = os.path.join(downloaded_path, "InSDN_DatasetCSV")
+        
+        # Copy to local data directory
+        os.makedirs("./data", exist_ok=True)
+        shutil.copytree(source_path, data_dir)
+        print(f"✓ Dataset downloaded and copied to {data_dir}")
+    except ImportError:
+        print("ERROR: kagglehub not installed. Install with: pip install kagglehub")
+        print("Or manually download the dataset from: https://www.kaggle.com/datasets/badcodebuilder/insdn-dataset")
+        sys.exit(1)
+    except Exception as e:
+        print(f"ERROR downloading dataset: {e}")
+        print("Please manually download from: https://www.kaggle.com/datasets/badcodebuilder/insdn-dataset")
+        sys.exit(1)
+else:
+    print(f"✓ Dataset found at {data_dir}")
 
 paths = {
     "normal": "./data/InSDN_DatasetCSV/Normal_data.csv",
@@ -225,3 +252,120 @@ joblib.dump(preprocess, "./output/preprocess.joblib")
 joblib.dump(le, "./output/label_encoder.joblib")
 
 print("Saved to ./output: final_model.keras, preprocess.joblib, label_encoder.joblib")
+
+# ============================================================
+# TRAINING VISUALIZATION
+# ============================================================
+import matplotlib.pyplot as plt
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+# Plot accuracy
+axes[0].plot(history.history['accuracy'], label='Train', linewidth=2)
+axes[0].plot(history.history['val_accuracy'], label='Validation', linewidth=2)
+axes[0].set_title('Model Accuracy')
+axes[0].set_xlabel('Epoch')
+axes[0].set_ylabel('Accuracy')
+axes[0].legend()
+axes[0].grid(True, alpha=0.3)
+
+# Plot loss
+axes[1].plot(history.history['loss'], label='Train', linewidth=2)
+axes[1].plot(history.history['val_loss'], label='Validation', linewidth=2)
+axes[1].set_title('Model Loss')
+axes[1].set_xlabel('Epoch')
+axes[1].set_ylabel('Loss')
+axes[1].legend()
+axes[1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('./output/training_curves.png', dpi=150)
+plt.close()
+print("Saved training curves to ./output/training_curves.png")
+
+# ============================================================
+# FEATURE IMPORTANCE (Permutation Importance)
+# ============================================================
+from sklearn.inspection import permutation_importance
+
+print("\nCalculating feature importance (this may take a few minutes)...")
+
+# Get feature names from preprocessor
+feature_names = []
+# Numeric features
+feature_names.extend(num_cols)
+# Categorical features (one-hot encoded names)
+if cat_cols:
+    ohe_feature_names = preprocess.named_transformers_['cat']['onehot'].get_feature_names_out(cat_cols)
+    feature_names.extend(ohe_feature_names)
+
+# Adjust feature names to match actual transformed features
+actual_features = X_test.shape[1]
+if len(feature_names) > actual_features:
+    feature_names = feature_names[:actual_features]
+elif len(feature_names) < actual_features:
+    feature_names.extend([f'feature_{i}' for i in range(len(feature_names), actual_features)])
+
+# Create a wrapper for sklearn's permutation_importance
+class KerasClassifierWrapper:
+    def __init__(self, model, threshold=0.5):
+        self.model = model
+        self.threshold = threshold
+        self.classes_ = np.array([0, 1])
+    
+    def fit(self, X, y):
+        return self  # Already trained
+    
+    def predict(self, X):
+        probs = self.model.predict(X, verbose=0)
+        if len(probs.shape) == 1 or probs.shape[1] == 1:
+            return (probs.reshape(-1) >= self.threshold).astype(int)
+        return probs.argmax(axis=1)
+    
+    def score(self, X, y):
+        y_pred = self.predict(X)
+        return (y_pred == y).mean()
+
+wrapper = KerasClassifierWrapper(model)
+
+# Calculate permutation importance on a subset for speed
+sample_size = min(5000, len(X_test))
+indices = np.random.choice(len(X_test), sample_size, replace=False)
+X_sample = X_test[indices]
+y_sample = y_test_int[indices]
+
+result = permutation_importance(
+    wrapper, X_sample, y_sample, 
+    n_repeats=10, 
+    random_state=42,
+    n_jobs=-1
+)
+
+# Get top 20 most important features
+importance_df = pd.DataFrame({
+    'feature': feature_names,
+    'importance': result.importances_mean,
+    'std': result.importances_std
+}).sort_values('importance', ascending=False)
+
+print("\n=== TOP 20 MOST IMPORTANT FEATURES ===")
+print(importance_df.head(20).to_string(index=False))
+
+# Save feature importance
+importance_df.to_csv('./output/feature_importance.csv', index=False)
+print("\nSaved feature importance to ./output/feature_importance.csv")
+
+# Plot top 20 features
+top_n = 20
+top_features = importance_df.head(top_n)
+
+plt.figure(figsize=(10, 8))
+plt.barh(range(top_n), top_features['importance'].values[::-1], 
+         xerr=top_features['std'].values[::-1], alpha=0.8, color='steelblue')
+plt.yticks(range(top_n), top_features['feature'].values[::-1])
+plt.xlabel('Importance (decrease in accuracy when shuffled)')
+plt.title('Top 20 Most Important Features')
+plt.tight_layout()
+plt.savefig('./output/feature_importance.png', dpi=150)
+plt.close()
+print("Saved feature importance plot to ./output/feature_importance.png")

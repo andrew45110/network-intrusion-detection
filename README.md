@@ -180,28 +180,39 @@ This imbalanced distribution is typical of real-world network traffic, where att
 
 ![Feature Importance](./output/feature_importance.png)
 
-The feature importance chart shows which network traffic features are most critical for detecting attacks. This was calculated using **Permutation Importance**.
+This chart shows which features are most important for detecting attacks. Longer bars mean more important features.
 
-#### How Permutation Importance Works:
+#### What is "Shuffling" a Feature?
 
-1. Start with the trained model and record its baseline accuracy (99.96%)
-2. For each feature, randomly shuffle (scramble) its values across all samples
-3. Measure how much the accuracy drops with the shuffled feature
-4. The bigger the drop, the more important that feature is
+Imagine we have 4 network traffic samples with their destination ports:
 
-**What "shuffled" means:** The feature's values are randomly rearranged among samples. For example, if `Dst Port` had values [80, 443, 22, 80] for 4 samples, after shuffling it might become [22, 80, 443, 80]. This breaks the relationship between that feature and the target label, effectively making the feature useless for prediction.
+**Original data:**
+| Sample | Dst Port | Label |
+|--------|----------|-------|
+| 1 | 80 | Attack |
+| 2 | 443 | Normal |
+| 3 | 22 | Attack |
+| 4 | 80 | Normal |
 
-#### Understanding the Scale (X-axis):
+**After shuffling Dst Port:**
+| Sample | Dst Port | Label |
+|--------|----------|-------|
+| 1 | 22 | Attack |
+| 2 | 80 | Normal |
+| 3 | 80 | Attack |
+| 4 | 443 | Normal |
 
-The x-axis shows the **decrease in model accuracy** when that feature is shuffled:
+Notice that the Dst Port values are now randomly rearranged, but the labels stay the same. This breaks the connection between Dst Port and the labels. If the model relied on Dst Port to make predictions, it will now perform worse because the port numbers no longer match the correct samples.
 
-| Value | Interpretation |
-|-------|----------------|
-| 0.10 | Accuracy drops by 10 percentage points (e.g., 99.96% to 89.96%) |
-| 0.01 | Accuracy drops by 1 percentage point |
-| 0.00 | Feature has no impact on predictions |
+#### How to Read the Chart:
 
-For example, `Fwd Byts/b Avg` has an importance of ~0.106, meaning the model's accuracy drops by about 10.6 percentage points when this feature is randomized. This makes it by far the most critical feature for attack detection.
+The x-axis shows how much worse the model performs when each feature is shuffled:
+
+- **10.6%** for `Fwd Byts/b Avg` means: when this feature is shuffled, the model's accuracy drops from 99.96% to about 89.4%
+- **3.1%** for `Dst Port` means: accuracy drops by 3.1 percentage points
+- **0%** would mean: the feature has no impact on predictions
+
+The higher the percentage, the more the model depends on that feature to detect attacks.
 
 #### Top 10 Most Important Features:
 

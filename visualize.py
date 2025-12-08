@@ -245,16 +245,23 @@ importance_df = pd.DataFrame({
 # Save CSV
 importance_df.to_csv('./output/feature_importance.csv', index=False)
 
-# Plot feature importance
+# Plot feature importance (without error bars for clarity)
 top_n = 20
 top_features = importance_df.head(top_n)
 
 plt.figure(figsize=(10, 8))
-plt.barh(range(top_n), top_features['importance'].values[::-1],
-         xerr=top_features['std'].values[::-1], alpha=0.8, color='steelblue')
+bars = plt.barh(range(top_n), top_features['importance'].values[::-1], 
+                alpha=0.8, color='steelblue')
 plt.yticks(range(top_n), top_features['feature'].values[::-1])
-plt.xlabel('Importance (decrease in accuracy when shuffled)')
+plt.xlabel('Importance Score (accuracy drop when feature is randomized)')
 plt.title('Top 20 Most Important Features for Attack Detection')
+
+# Add value labels on bars
+for i, bar in enumerate(bars):
+    width = bar.get_width()
+    plt.text(width + 0.002, bar.get_y() + bar.get_height()/2, 
+             f'{width:.1%}', va='center', fontsize=8)
+
 plt.tight_layout()
 plt.savefig('./output/feature_importance.png', dpi=150)
 plt.close()
