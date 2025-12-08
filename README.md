@@ -136,16 +136,6 @@ The model correctly identifies **99.96%** of both attack and normal network traf
 
 ## Visualizations & Analysis
 
-### Training Curves
-
-![Training Curves](./output/training_curves.png)
-
-The training curves show the model's learning progress over epochs:
-
-- **Left plot (Accuracy):** Both training and validation accuracy quickly reach ~99.9% and remain stable, indicating the model learns effectively without overfitting.
-- **Right plot (Loss):** The loss decreases rapidly in early epochs and stabilizes, showing good convergence.
-- **Early Stopping:** Training stopped at epoch 20 (best model from epoch 17) when validation accuracy stopped improving, preventing overfitting.
-
 ### Feature Importance
 
 ![Feature Importance](./output/feature_importance.png)
@@ -181,9 +171,13 @@ After training, you'll find in `./output/`:
 - `best_model.keras` - Best model checkpoint during training
 - `preprocess.joblib` - Feature preprocessing pipeline
 - `label_encoder.joblib` - Label encoder for predictions
-- `training_curves.png` - Accuracy and loss plots over epochs
 - `feature_importance.png` - Top 20 most important features visualization
 - `feature_importance.csv` - Full feature importance rankings
+
+To regenerate visualizations after training, run:
+```bash
+python visualize.py
+```
 
 ## Using the Trained Model
 
@@ -237,6 +231,7 @@ If the model doesn't reach high accuracy:
 ```
 Project/
 ├── notebook.py              # Main training script
+├── visualize.py             # Visualization generation script
 ├── requirements.txt         # Python dependencies
 ├── README.md               # This file
 ├── data/                   # Dataset directory
@@ -249,7 +244,6 @@ Project/
     ├── best_model.keras
     ├── preprocess.joblib
     ├── label_encoder.joblib
-    ├── training_curves.png
     ├── feature_importance.png
     └── feature_importance.csv
 ```
