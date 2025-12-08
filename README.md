@@ -140,102 +140,278 @@ The model correctly identifies **99.96%** of both attack and normal network traf
 
 ![Confusion Matrix](./output/confusion_matrix.png)
 
-The confusion matrix shows the model's classification performance:
-- **True Negatives (55,076):** Attacks correctly identified as attacks
-- **True Positives (13,669):** Normal traffic correctly identified as normal
-- **False Positives (17):** Normal traffic incorrectly flagged as attacks (false alarms)
-- **False Negatives (16):** Attacks incorrectly classified as normal (missed attacks)
+#### What is a Confusion Matrix?
 
-The model achieves an extremely low false positive and false negative rate, making it reliable for production use.
+A confusion matrix is a table that shows how many predictions the model got right vs. wrong. Think of it as a scorecard comparing what the model predicted against what actually happened.
+
+#### The Four Quadrants Explained:
+
+Imagine the model looks at 100 network connections and makes predictions:
+
+```
+                        ACTUAL (Ground Truth)
+                    ┌─────────────┬─────────────┐
+                    │   Attack    │   Normal    │
+        ┌───────────┼─────────────┼─────────────┤
+        │  Attack   │     TN      │     FP      │
+PREDICTED           │  (Correct!) │  (Danger!)  │
+        ├───────────┼─────────────┼─────────────┤
+        │  Normal   │     FN      │     TP      │
+        │           │  (Danger!)  │  (Correct!) │
+        └───────────┴─────────────┴─────────────┘
+```
+
+| Quadrant | What Happened | Real-World Meaning |
+|----------|--------------|-------------------|
+| **True Negative (TN): 55,076** | Model said "Attack" → Was actually Attack | Correctly blocked an attack |
+| **True Positive (TP): 13,669** | Model said "Normal" → Was actually Normal | Correctly allowed legitimate traffic |
+| **False Positive (FP): 17** | Model said "Attack" → Was actually Normal | False alarm - blocked legitimate user |
+| **False Negative (FN): 16** | Model said "Normal" → Was actually Attack | Missed attack - let attacker through! |
+
+#### Why This Matters:
+
+- **False Negatives are dangerous**: The model let 16 attacks slip through undetected. In a real system, these could be successful breaches.
+- **False Positives are annoying**: 17 legitimate users got blocked. This hurts user experience but doesn't compromise security.
+- **Our model**: 99.97% accuracy with only 33 mistakes out of 68,778 predictions.
+
+---
 
 ### 2. ROC Curve
 
 ![ROC Curve](./output/roc_curve.png)
 
-The Receiver Operating Characteristic (ROC) curve shows the trade-off between True Positive Rate (TPR) and False Positive Rate (FPR):
-- **AUC Score: 0.9999** - Nearly perfect classification
-- The curve is almost a right angle (straight up then flat across) because the model achieves near-perfect True Positive Rate (1.0) at almost zero False Positive Rate
-- A random classifier would follow the diagonal dashed line (AUC = 0.5)
-- Our model's AUC of 0.9999 means it can distinguish between attacks and normal traffic almost perfectly
+#### What is the ROC Curve?
+
+The ROC (Receiver Operating Characteristic) curve answers: **"How good is the model at telling attacks apart from normal traffic?"**
+
+#### Understanding the Threshold:
+
+The model outputs a probability (0% to 100%) for each connection. We need to pick a **threshold** to decide what counts as "Attack":
+
+| Threshold | Effect |
+|-----------|--------|
+| Low (e.g., 20%) | Aggressive - flags more traffic as attacks. Catches more real attacks BUT also more false alarms |
+| High (e.g., 80%) | Conservative - only flags obvious attacks. Fewer false alarms BUT might miss subtle attacks |
+
+The ROC curve shows what happens at **every possible threshold** from 0% to 100%.
+
+#### The Axes Explained:
+
+- **Y-axis (True Positive Rate / Sensitivity)**: Of all actual attacks, what percentage did we catch?
+  - Formula: `Attacks Detected / Total Attacks`
+  - Higher is better (we want to catch all attacks)
+
+- **X-axis (False Positive Rate)**: Of all normal traffic, what percentage did we incorrectly flag?
+  - Formula: `False Alarms / Total Normal Traffic`
+  - Lower is better (we don't want to annoy legitimate users)
+
+#### Reading the Curve:
+
+```
+TPR
+1.0 ┤████████████████████████  ← Perfect: catches 100% of attacks
+    │█
+    │█
+    │█   Our model hugs this corner
+    │█   (nearly perfect)
+0.5 ┤
+    │        ╱ Random guessing
+    │      ╱   (diagonal line)
+    │    ╱
+    │  ╱
+0.0 ┼──┴────────────────────────
+    0.0                      1.0
+                            FPR
+```
+
+- **Top-left corner** = Perfect classifier (100% attacks caught, 0% false alarms)
+- **Diagonal line** = Random guessing (useless model)
+- **Our curve** = Almost touches the top-left corner
+
+#### What is AUC (Area Under Curve)?
+
+AUC measures the total area under the ROC curve:
+- **AUC = 1.0**: Perfect model
+- **AUC = 0.5**: Random guessing
+- **AUC = 0.9999 (our model)**: Near-perfect classification
+
+**Interpretation**: If you randomly pick one attack and one normal connection, there's a 99.99% chance our model correctly ranks the attack as more suspicious.
+
+---
 
 ### 3. Precision-Recall Curve
 
 ![Precision-Recall Curve](./output/precision_recall_curve.png)
 
-The Precision-Recall curve is particularly important for imbalanced datasets:
-- **Average Precision: 0.9999** - Consistently high precision across all recall thresholds
-- Maintains high precision even at high recall levels
-- Indicates the model can detect nearly all attacks without generating excessive false alarms
+#### Why Another Curve?
+
+ROC curves can be misleading when classes are imbalanced (like ours: 80% attacks, 20% normal). The Precision-Recall curve focuses specifically on how well we detect the positive class.
+
+#### The Two Metrics:
+
+**Precision** answers: "When the model raises an alarm, how often is it a real attack?"
+```
+Precision = True Attacks Flagged / All Flagged Traffic
+```
+- High precision = Few false alarms
+- Low precision = Many false alarms (crying wolf)
+
+**Recall** answers: "Of all real attacks, how many did we catch?"
+```
+Recall = Attacks Caught / All Actual Attacks
+```
+- High recall = Catching most attacks
+- Low recall = Missing many attacks
+
+#### The Trade-off:
+
+You usually can't have both perfect precision AND perfect recall:
+
+| Strategy | Precision | Recall | Problem |
+|----------|-----------|--------|---------|
+| Flag everything as Attack | Low | 100% | Tons of false alarms |
+| Only flag obvious attacks | High | Low | Miss subtle attacks |
+| **Our model** | **99.99%** | **99.97%** | Almost none! |
+
+#### Reading the Curve:
+
+```
+Precision
+1.0 ┤████████████████████████  ← Our model stays high
+    │                        █
+    │                        █
+    │                        █
+0.5 ┤
+    │
+    │      Typical trade-off curve
+    │         would drop here
+0.0 ┼────────────────────────────
+    0.0        Recall        1.0
+```
+
+- **Top-right corner** = Perfect (high precision AND high recall)
+- **Our curve** = Stays near 1.0 across almost all recall values
+- **Average Precision = 0.9999** = The model maintains excellent precision while catching nearly all attacks
+
+---
 
 ### 4. Class Distribution
 
 ![Class Distribution](./output/class_distribution.png)
 
-The dataset contains:
+#### What This Shows:
+
+The bar chart displays how many samples of each class are in our dataset:
 - **Attack samples:** 275,465 (80.1%)
 - **Normal samples:** 68,423 (19.9%)
 
-This imbalanced distribution is typical of real-world network traffic, where attacks are more common in security datasets. The model uses class weights during training to handle this imbalance.
+#### Why Imbalance Matters:
 
-### 5. Feature Importance
+Imagine a lazy model that just says "Attack" for everything:
+- It would be 80.1% accurate (correctly labeling all attacks)
+- But it would be completely useless (blocks all legitimate traffic)
+
+This is why we can't just look at accuracy alone - we need the confusion matrix, precision, and recall.
+
+#### How We Handle Imbalance:
+
+The model uses **class weights** during training:
+- Normal samples are weighted ~4x higher than Attack samples
+- This forces the model to pay equal attention to both classes
+- Without this, the model might ignore the minority class (Normal traffic)
+
+```python
+class_weight = {
+    0: 1.25,   # Attack class
+    1: 5.02    # Normal class (weighted higher because fewer samples)
+}
+```
+
+---
+
+### 5. Feature Importance (Permutation Importance)
 
 ![Feature Importance](./output/feature_importance.png)
 
-This chart shows which features are most important for detecting attacks. Longer bars mean more important features.
+This chart shows which network traffic features are most useful for detecting attacks.
 
-#### What is "Shuffling" a Feature?
+#### How Permutation Importance Works:
 
-Imagine we have 4 network traffic samples with their destination ports:
+We test each feature one at a time using this process:
 
-**Original data:**
-| Sample | Dst Port | Label |
-|--------|----------|-------|
-| 1 | 80 | Attack |
-| 2 | 443 | Normal |
-| 3 | 22 | Attack |
-| 4 | 80 | Normal |
+```
+For each of the ~80 features:
+    1. Take the trained model
+    2. Shuffle ONLY that one feature (randomize its values)
+    3. Keep all other features unchanged
+    4. Make predictions with the shuffled data
+    5. Measure: How much did accuracy drop?
+    6. Restore the feature, move to the next one
+```
 
-**After shuffling Dst Port:**
-| Sample | Dst Port | Label |
-|--------|----------|-------|
-| 1 | 22 | Attack |
-| 2 | 80 | Normal |
-| 3 | 80 | Attack |
-| 4 | 443 | Normal |
+#### Visual Example - Shuffling a Feature:
 
-Notice that the Dst Port values are now randomly rearranged, but the labels stay the same. This breaks the connection between Dst Port and the labels. If the model relied on Dst Port to make predictions, it will now perform worse because the port numbers no longer match the correct samples.
+Imagine we have 4 network connections:
+
+**Original data (model is 100% accurate):**
+| Sample | Dst Port | Pkt Size | Other Features... | Actual Label | Model Predicts |
+|--------|----------|----------|-------------------|--------------|----------------|
+| 1 | 80 | 1500 | ... | Attack | Attack (correct) |
+| 2 | 443 | 64 | ... | Normal | Normal (correct) |
+| 3 | 22 | 1500 | ... | Attack | Attack (correct) |
+| 4 | 80 | 64 | ... | Normal | Normal (correct) |
+
+**After shuffling ONLY Dst Port:**
+| Sample | Dst Port | Pkt Size | Other Features... | Actual Label | Model Predicts |
+|--------|----------|----------|-------------------|--------------|----------------|
+| 1 | **443** | 1500 | ... | Attack | Normal (WRONG) |
+| 2 | **22** | 64 | ... | Normal | Attack (WRONG) |
+| 3 | **80** | 1500 | ... | Attack | Attack (correct) |
+| 4 | **80** | 64 | ... | Normal | Normal (correct) |
+
+**Result**: Accuracy dropped from 100% to 50%. This means Dst Port was important - the model relied on it!
+
+#### The Key Insight:
+
+- **If shuffling a feature makes the model much worse** → The model depends on that feature → **IMPORTANT**
+- **If shuffling barely affects accuracy** → The model ignores that feature → **NOT IMPORTANT**
 
 #### How to Read the Chart:
 
-The x-axis shows how much worse the model performs when each feature is shuffled:
+The x-axis shows the **accuracy drop** when each feature is shuffled:
 
-- **10.6%** for `Fwd Byts/b Avg` means: when this feature is shuffled, the model's accuracy drops from 99.96% to about 89.4%
-- **3.1%** for `Dst Port` means: accuracy drops by 3.1 percentage points
-- **0%** would mean: the feature has no impact on predictions
-
-The higher the percentage, the more the model depends on that feature to detect attacks.
+| Feature | Importance | Meaning |
+|---------|------------|---------|
+| `Fwd Byts/b Avg` | 10.6% | Shuffling drops accuracy from 99.96% → ~89.4%. **Critical feature!** |
+| `Dst Port` | 3.1% | Shuffling drops accuracy by 3.1 percentage points |
+| Features near 0% | ~0% | Model barely uses these features |
 
 #### Top 10 Most Important Features:
 
-| Rank | Feature | Importance | Description |
-|------|---------|------------|-------------|
-| 1 | **Fwd Byts/b Avg** | 10.6% | Average bytes per bulk in forward direction - highest predictor of attacks |
-| 2 | **Dst Port** | 3.1% | Destination port number - certain ports are targeted more by attacks |
-| 3 | **Fwd Pkts/s** | 1.8% | Forward packets per second - attack traffic often has unusual packet rates |
-| 4 | **Pkt Len Std** | 1.8% | Packet length standard deviation - attacks often have irregular packet sizes |
-| 5 | **Fwd Pkt Len Std** | 1.7% | Forward packet length variation |
-| 6 | **Fwd Pkt Len Max** | 1.5% | Maximum forward packet length |
-| 7 | **Fwd IAT Max** | 0.8% | Maximum inter-arrival time in forward direction |
-| 8 | **Protocol** | 0.7% | Network protocol (TCP/UDP/ICMP) |
-| 9 | **Fwd IAT Mean** | 0.6% | Mean inter-arrival time |
-| 10 | **RST Flag Cnt** | 0.4% | TCP RST flag count - often elevated during attacks |
+| Rank | Feature | Importance | What It Measures |
+|------|---------|------------|------------------|
+| 1 | **Fwd Byts/b Avg** | 10.6% | Average bytes per bulk transfer (forward direction) |
+| 2 | **Dst Port** | 3.1% | Destination port (e.g., 80=HTTP, 443=HTTPS, 22=SSH) |
+| 3 | **Fwd Pkts/s** | 1.8% | Packets per second in forward direction |
+| 4 | **Pkt Len Std** | 1.8% | How much packet sizes vary (standard deviation) |
+| 5 | **Fwd Pkt Len Std** | 1.7% | Variation in forward packet lengths |
+| 6 | **Fwd Pkt Len Max** | 1.5% | Largest packet sent in forward direction |
+| 7 | **Fwd IAT Max** | 0.8% | Maximum time gap between forward packets |
+| 8 | **Protocol** | 0.7% | TCP, UDP, or ICMP |
+| 9 | **Fwd IAT Mean** | 0.6% | Average time between forward packets |
+| 10 | **RST Flag Cnt** | 0.4% | Number of TCP RST (reset) flags |
 
-#### Key Insights:
+#### Why These Features Matter for Security:
 
-1. **Bulk Transfer Metrics** (`Fwd Byts/b Avg`) are the strongest indicators - attacks often involve unusual data transfer patterns
-2. **Port Information** (`Dst Port`) is highly predictive - attackers target specific services/ports
-3. **Packet Timing** (IAT features) and **Packet Sizes** help distinguish attack traffic from normal traffic
-4. **TCP Flags** (RST, PSH, URG) can indicate connection anomalies typical of attacks
+1. **Bulk Transfer Patterns** (`Fwd Byts/b Avg`): Attacks often send data in unusual burst patterns - either flooding with tiny packets or exfiltrating in large chunks.
+
+2. **Port Numbers** (`Dst Port`): Attackers target specific services. Port 22 (SSH) sees brute-force attacks, port 80/443 sees web exploits.
+
+3. **Packet Timing** (IAT = Inter-Arrival Time): Normal traffic has natural pauses. Automated attacks often have unnaturally consistent or erratic timing.
+
+4. **Packet Size Variation** (`Pkt Len Std`): Normal browsing has varied packet sizes. Some attacks use fixed-size packets.
+
+5. **TCP Flags** (`RST Flag Cnt`): Elevated RST flags can indicate port scanning, connection hijacking, or denial-of-service attempts.
 
 ## Output Files
 
