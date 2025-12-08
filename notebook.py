@@ -359,13 +359,19 @@ print("\nSaved feature importance to ./output/feature_importance.csv")
 top_n = 20
 top_features = importance_df.head(top_n)
 
-plt.figure(figsize=(10, 8))
-plt.barh(range(top_n), top_features['importance'].values[::-1], 
-         xerr=top_features['std'].values[::-1], alpha=0.8, color='steelblue')
-plt.yticks(range(top_n), top_features['feature'].values[::-1])
-plt.xlabel('Importance (decrease in accuracy when shuffled)')
-plt.title('Top 20 Most Important Features')
-plt.tight_layout()
-plt.savefig('./output/feature_importance.png', dpi=150)
+fig, ax = plt.subplots(figsize=(12, 8))
+ax.barh(range(top_n), top_features['importance'].values[::-1], 
+        xerr=top_features['std'].values[::-1], alpha=0.8, color='steelblue')
+ax.set_yticks(range(top_n))
+ax.set_yticklabels(top_features['feature'].values[::-1])
+ax.set_xlabel('Importance (decrease in accuracy when shuffled)')
+ax.set_title('Top 20 Most Important Features')
+
+# Add padding to x-axis so bars and error bars don't extend beyond the border
+max_val = (top_features['importance'] + top_features['std']).max()
+ax.set_xlim(0, max_val * 1.15)  # 15% padding on the right
+
+plt.subplots_adjust(left=0.25)  # Add more space on the left for feature labels
+plt.savefig('./output/feature_importance.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("Saved feature importance plot to ./output/feature_importance.png")
