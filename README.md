@@ -152,10 +152,11 @@ The model achieves an extremely low false positive and false negative rate, maki
 
 ![ROC Curve](./output/roc_curve.png)
 
-The Receiver Operating Characteristic (ROC) curve shows the trade-off between True Positive Rate and False Positive Rate:
+The Receiver Operating Characteristic (ROC) curve shows the trade-off between True Positive Rate (TPR) and False Positive Rate (FPR):
 - **AUC Score: 0.9999** - Nearly perfect classification
-- The curve hugs the top-left corner, indicating excellent discrimination between attack and normal traffic
-- Far superior to a random classifier (diagonal line)
+- The curve is almost a right angle (straight up then flat across) because the model achieves near-perfect True Positive Rate (1.0) at almost zero False Positive Rate
+- A random classifier would follow the diagonal dashed line (AUC = 0.5)
+- Our model's AUC of 0.9999 means it can distinguish between attacks and normal traffic almost perfectly
 
 ### 3. Precision-Recall Curve
 
