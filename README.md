@@ -136,7 +136,47 @@ The model correctly identifies **99.96%** of both attack and normal network traf
 
 ## Visualizations & Analysis
 
-### Feature Importance
+### 1. Confusion Matrix
+
+![Confusion Matrix](./output/confusion_matrix.png)
+
+The confusion matrix shows the model's classification performance:
+- **True Negatives (55,076):** Attacks correctly identified as attacks
+- **True Positives (13,669):** Normal traffic correctly identified as normal
+- **False Positives (17):** Normal traffic incorrectly flagged as attacks (false alarms)
+- **False Negatives (16):** Attacks incorrectly classified as normal (missed attacks)
+
+The model achieves an extremely low false positive and false negative rate, making it reliable for production use.
+
+### 2. ROC Curve
+
+![ROC Curve](./output/roc_curve.png)
+
+The Receiver Operating Characteristic (ROC) curve shows the trade-off between True Positive Rate and False Positive Rate:
+- **AUC Score: 0.9999** - Nearly perfect classification
+- The curve hugs the top-left corner, indicating excellent discrimination between attack and normal traffic
+- Far superior to a random classifier (diagonal line)
+
+### 3. Precision-Recall Curve
+
+![Precision-Recall Curve](./output/precision_recall_curve.png)
+
+The Precision-Recall curve is particularly important for imbalanced datasets:
+- **Average Precision: 0.9999** - Consistently high precision across all recall thresholds
+- Maintains high precision even at high recall levels
+- Indicates the model can detect nearly all attacks without generating excessive false alarms
+
+### 4. Class Distribution
+
+![Class Distribution](./output/class_distribution.png)
+
+The dataset contains:
+- **Attack samples:** 275,465 (80.1%)
+- **Normal samples:** 68,423 (19.9%)
+
+This imbalanced distribution is typical of real-world network traffic, where attacks are more common in security datasets. The model uses class weights during training to handle this imbalance.
+
+### 5. Feature Importance
 
 ![Feature Importance](./output/feature_importance.png)
 
@@ -171,10 +211,16 @@ After training, you'll find in `./output/`:
 - `best_model.keras` - Best model checkpoint during training
 - `preprocess.joblib` - Feature preprocessing pipeline
 - `label_encoder.joblib` - Label encoder for predictions
-- `feature_importance.png` - Top 20 most important features visualization
+
+After running `python visualize.py`:
+- `confusion_matrix.png` - Confusion matrix heatmap
+- `roc_curve.png` - ROC curve with AUC score
+- `precision_recall_curve.png` - Precision-recall curve
+- `class_distribution.png` - Dataset class balance visualization
+- `feature_importance.png` - Top 20 most important features
 - `feature_importance.csv` - Full feature importance rankings
 
-To regenerate visualizations after training, run:
+To generate or regenerate visualizations after training:
 ```bash
 python visualize.py
 ```
@@ -244,6 +290,10 @@ Project/
     ├── best_model.keras
     ├── preprocess.joblib
     ├── label_encoder.joblib
+    ├── confusion_matrix.png
+    ├── roc_curve.png
+    ├── precision_recall_curve.png
+    ├── class_distribution.png
     ├── feature_importance.png
     └── feature_importance.csv
 ```

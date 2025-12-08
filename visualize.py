@@ -1,6 +1,6 @@
 """
 Visualization script for Network Intrusion Detection model.
-Run this after training to generate/update visualizations.
+Run this after training to generate comprehensive analysis visualizations.
 
 Usage:
     python visualize.py
@@ -12,14 +12,23 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import joblib
 from tensorflow import keras
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import (
+    confusion_matrix, 
+    roc_curve, 
+    auc, 
+    precision_recall_curve,
+    average_precision_score,
+    classification_report
+)
 
 print("=" * 60)
-print("VISUALIZATION SCRIPT")
+print("VISUALIZATION SCRIPT - Comprehensive Analysis")
 print("=" * 60)
 
 # Check if model exists
@@ -27,13 +36,13 @@ if not os.path.exists('./output/final_model.keras'):
     print("ERROR: Model not found. Please run 'python notebook.py' first to train the model.")
     exit(1)
 
-print("\n1. Loading model and preprocessors...")
+print("\n[1/7] Loading model and preprocessors...")
 model = keras.models.load_model('./output/final_model.keras')
 preprocess = joblib.load('./output/preprocess.joblib')
 le = joblib.load('./output/label_encoder.joblib')
-print("   ✓ Model loaded")
+print("       Model loaded successfully")
 
-print("\n2. Loading dataset...")
+print("\n[2/7] Loading dataset...")
 paths = {
     "normal": "./data/InSDN_DatasetCSV/Normal_data.csv",
     "ovs": "./data/InSDN_DatasetCSV/OVS.csv",
@@ -61,7 +70,7 @@ df["LabelBinary"] = np.where(
     "Normal",
     "Attack"
 )
-print(f"   ✓ Loaded {len(df):,} samples")
+print(f"       Loaded {len(df):,} samples")
 
 # Prepare data
 drop_cols = ["LabelBinary", "Label", "__source__", "Flow ID", "Src IP", "Dst IP", "Timestamp"]
@@ -80,10 +89,104 @@ X_test = preprocess.transform(X_test_raw).astype("float32")
 le_test = LabelEncoder()
 y_test_int = le_test.fit_transform(y_test_raw)
 
+# Get predictions
+print("\n[3/7] Generating predictions...")
+y_pred_prob = model.predict(X_test, verbose=0).reshape(-1)
+y_pred = (y_pred_prob >= 0.5).astype(int)
+print("       Predictions complete")
+
 # ============================================================
-# FEATURE IMPORTANCE
+# 1. CONFUSION MATRIX HEATMAP
 # ============================================================
-print("\n3. Calculating feature importance (this may take a few minutes)...")
+print("\n[4/7] Generating confusion matrix heatmap...")
+cm = confusion_matrix(y_test_int, y_pred)
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+            xticklabels=['Attack', 'Normal'],
+            yticklabels=['Attack', 'Normal'])
+plt.title('Confusion Matrix\n(Predicted vs Actual)')
+plt.xlabel('Predicted Label')
+plt.ylabel('Actual Label')
+plt.tight_layout()
+plt.savefig('./output/confusion_matrix.png', dpi=150)
+plt.close()
+print("       Saved confusion_matrix.png")
+
+# ============================================================
+# 2. ROC CURVE
+# ============================================================
+print("\n[5/7] Generating ROC curve...")
+fpr, tpr, thresholds = roc_curve(y_test_int, y_pred_prob)
+roc_auc = auc(fpr, tpr)
+
+plt.figure(figsize=(8, 6))
+plt.plot(fpr, tpr, color='steelblue', lw=2, label=f'ROC Curve (AUC = {roc_auc:.4f})')
+plt.plot([0, 1], [0, 1], color='gray', lw=1, linestyle='--', label='Random Classifier')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic (ROC) Curve')
+plt.legend(loc='lower right')
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig('./output/roc_curve.png', dpi=150)
+plt.close()
+print(f"       Saved roc_curve.png (AUC = {roc_auc:.4f})")
+
+# ============================================================
+# 3. PRECISION-RECALL CURVE
+# ============================================================
+print("\n[6/7] Generating precision-recall curve...")
+precision, recall, pr_thresholds = precision_recall_curve(y_test_int, y_pred_prob)
+avg_precision = average_precision_score(y_test_int, y_pred_prob)
+
+plt.figure(figsize=(8, 6))
+plt.plot(recall, precision, color='steelblue', lw=2, label=f'PR Curve (AP = {avg_precision:.4f})')
+plt.axhline(y=y_test_int.mean(), color='gray', linestyle='--', label='Baseline')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.title('Precision-Recall Curve')
+plt.legend(loc='lower left')
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig('./output/precision_recall_curve.png', dpi=150)
+plt.close()
+print(f"       Saved precision_recall_curve.png (AP = {avg_precision:.4f})")
+
+# ============================================================
+# 4. CLASS DISTRIBUTION
+# ============================================================
+print("\n[7/7] Generating class distribution chart...")
+class_counts = df["LabelBinary"].value_counts()
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+# Bar chart
+colors = ['#e74c3c', '#27ae60']  # Red for Attack, Green for Normal
+axes[0].bar(class_counts.index, class_counts.values, color=colors)
+axes[0].set_title('Class Distribution')
+axes[0].set_xlabel('Class')
+axes[0].set_ylabel('Number of Samples')
+for i, (label, count) in enumerate(class_counts.items()):
+    axes[0].text(i, count + 5000, f'{count:,}', ha='center', fontsize=10)
+
+# Pie chart
+axes[1].pie(class_counts.values, labels=class_counts.index, autopct='%1.1f%%', 
+            colors=colors, startangle=90)
+axes[1].set_title('Class Proportion')
+
+plt.tight_layout()
+plt.savefig('./output/class_distribution.png', dpi=150)
+plt.close()
+print("       Saved class_distribution.png")
+
+# ============================================================
+# 5. FEATURE IMPORTANCE (existing)
+# ============================================================
+print("\n[BONUS] Calculating feature importance (this may take a few minutes)...")
 
 # Get feature names
 feature_names = list(num_cols)
@@ -139,17 +242,10 @@ importance_df = pd.DataFrame({
     'std': result.importances_std
 }).sort_values('importance', ascending=False)
 
-print("\n   TOP 20 MOST IMPORTANT FEATURES:")
-print("   " + "-" * 50)
-for i, row in importance_df.head(20).iterrows():
-    print(f"   {row['feature']:25s} {row['importance']:.4f}")
-
 # Save CSV
 importance_df.to_csv('./output/feature_importance.csv', index=False)
-print("\n   ✓ Saved feature_importance.csv")
 
 # Plot feature importance
-print("\n4. Generating feature importance plot...")
 top_n = 20
 top_features = importance_df.head(top_n)
 
@@ -162,12 +258,34 @@ plt.title('Top 20 Most Important Features for Attack Detection')
 plt.tight_layout()
 plt.savefig('./output/feature_importance.png', dpi=150)
 plt.close()
-print("   ✓ Saved feature_importance.png")
+print("       Saved feature_importance.png and feature_importance.csv")
 
+# ============================================================
+# SUMMARY
+# ============================================================
 print("\n" + "=" * 60)
-print("VISUALIZATION COMPLETE!")
+print("VISUALIZATION COMPLETE")
 print("=" * 60)
+
+print("\nModel Performance Summary:")
+print("-" * 40)
+print(f"  ROC AUC Score:        {roc_auc:.4f}")
+print(f"  Average Precision:    {avg_precision:.4f}")
+print(f"  Test Samples:         {len(y_test_int):,}")
+
+print("\nConfusion Matrix:")
+print("-" * 40)
+tn, fp, fn, tp = cm.ravel()
+print(f"  True Negatives:       {tn:,} (correctly identified attacks)")
+print(f"  True Positives:       {tp:,} (correctly identified normal)")
+print(f"  False Positives:      {fp:,} (false alarms)")
+print(f"  False Negatives:      {fn:,} (missed attacks)")
+
 print("\nGenerated files in ./output/:")
+print("-" * 40)
+print("  - confusion_matrix.png")
+print("  - roc_curve.png")
+print("  - precision_recall_curve.png")
+print("  - class_distribution.png")
 print("  - feature_importance.png")
 print("  - feature_importance.csv")
-
