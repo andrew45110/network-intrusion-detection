@@ -34,7 +34,8 @@ kaggle.json
 # Logs
 *.log
 
-# Research papers (keep local only)
+# Research papers and reports (keep local only)
 *.docx
 *.pdf
+Technical_Report.md
 
