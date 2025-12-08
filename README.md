@@ -180,7 +180,28 @@ This imbalanced distribution is typical of real-world network traffic, where att
 
 ![Feature Importance](./output/feature_importance.png)
 
-The feature importance chart shows which network traffic features are most critical for detecting attacks. This was calculated using **Permutation Importance** - measuring how much accuracy drops when each feature is randomly shuffled.
+The feature importance chart shows which network traffic features are most critical for detecting attacks. This was calculated using **Permutation Importance**.
+
+#### How Permutation Importance Works:
+
+1. Start with the trained model and record its baseline accuracy (99.96%)
+2. For each feature, randomly shuffle (scramble) its values across all samples
+3. Measure how much the accuracy drops with the shuffled feature
+4. The bigger the drop, the more important that feature is
+
+**What "shuffled" means:** The feature's values are randomly rearranged among samples. For example, if `Dst Port` had values [80, 443, 22, 80] for 4 samples, after shuffling it might become [22, 80, 443, 80]. This breaks the relationship between that feature and the target label, effectively making the feature useless for prediction.
+
+#### Understanding the Scale (X-axis):
+
+The x-axis shows the **decrease in model accuracy** when that feature is shuffled:
+
+| Value | Interpretation |
+|-------|----------------|
+| 0.10 | Accuracy drops by 10 percentage points (e.g., 99.96% to 89.96%) |
+| 0.01 | Accuracy drops by 1 percentage point |
+| 0.00 | Feature has no impact on predictions |
+
+For example, `Fwd Byts/b Avg` has an importance of ~0.106, meaning the model's accuracy drops by about 10.6 percentage points when this feature is randomized. This makes it by far the most critical feature for attack detection.
 
 #### Top 10 Most Important Features:
 
