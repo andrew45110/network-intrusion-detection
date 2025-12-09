@@ -1,4 +1,4 @@
-# Network Security Intrusion Detection - InSDN Dataset
+# ML-Based Network Intrusion Detection  
 
 This project uses deep learning to detect network intrusions using the InSDN Dataset. The model achieves high accuracy in classifying network traffic as either Normal or Attack.
 
