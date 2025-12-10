@@ -183,10 +183,10 @@ The model was trained and achieved excellent performance:
 ```
 
 ### Confusion Matrix
-- **True Positives (Attacks detected):** 55,080
-- **False Negatives (Missed attacks):** 13
-- **True Negatives (Normal traffic):** 13,670
-- **False Positives (False alarms):** 15
+- **True Positives (TP):** 55,080 - Attacks correctly detected
+- **True Negatives (TN):** 13,670 - Normal traffic correctly identified
+- **False Positives (FP):** 15 - Normal traffic incorrectly flagged as attacks
+- **False Negatives (FN):** 13 - Attacks missed (incorrectly classified as normal)
 
 The model correctly identifies **99.96%** of both attack and normal network traffic with minimal false positives and false negatives.
 
@@ -209,20 +209,20 @@ Imagine the model looks at 100 network connections and makes predictions:
                     ┌─────────────┬─────────────┐
                     │   Attack    │   Normal    │
         ┌───────────┼─────────────┼─────────────┤
-        │  Attack   │     TN      │     FP      │
+        │  Attack   │     TP      │     FP      │
 PREDICTED           │  (Correct!) │  (Danger!)  │
         ├───────────┼─────────────┼─────────────┤
-        │  Normal   │     FN      │     TP      │
+        │  Normal   │     FN      │     TN      │
         │           │  (Danger!)  │  (Correct!) │
         └───────────┴─────────────┴─────────────┘
 ```
 
 | Quadrant | What Happened | Real-World Meaning |
 |----------|--------------|-------------------|
-| **True Negative (TN): 55,076** | Model said "Attack" → Was actually Attack | Correctly blocked an attack |
-| **True Positive (TP): 13,669** | Model said "Normal" → Was actually Normal | Correctly allowed legitimate traffic |
-| **False Positive (FP): 17** | Model said "Attack" → Was actually Normal | False alarm - blocked legitimate user |
-| **False Negative (FN): 16** | Model said "Normal" → Was actually Attack | Missed attack - let attacker through! |
+| **True Positive (TP): 55,080** | Model said "Attack" → Was actually Attack | Correctly detected and blocked an attack |
+| **True Negative (TN): 13,670** | Model said "Normal" → Was actually Normal | Correctly allowed legitimate traffic |
+| **False Positive (FP): 15** | Model said "Attack" → Was actually Normal | False alarm - blocked legitimate user |
+| **False Negative (FN): 13** | Model said "Normal" → Was actually Attack | Missed attack - let attacker through! |
 
 #### Why This Matters:
 
