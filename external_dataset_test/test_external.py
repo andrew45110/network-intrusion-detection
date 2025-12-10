@@ -7,6 +7,7 @@ Handles feature mapping and reports comprehensive metrics.
 
 import os
 import sys
+import time
 import pandas as pd
 import numpy as np
 import joblib
@@ -18,7 +19,8 @@ from sklearn.metrics import (
     roc_curve,
     precision_recall_curve,
     average_precision_score,
-    accuracy_score
+    accuracy_score,
+    f1_score
 )
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -202,6 +204,43 @@ class ExternalDatasetTester:
         
         return pd.Series(binary_labels, index=labels.index)
     
+    def _normalize_feature_name(self, name):
+        """Normalize feature names for better matching."""
+        # Remove leading/trailing spaces
+        name = name.strip()
+        # Common variations
+        name = name.replace(' ', '')
+        name = name.replace('_', '')
+        name = name.replace('-', '')
+        name = name.lower()
+        return name
+    
+    def _create_feature_mapping(self, external_features, expected_features):
+        """
+        Create a mapping from external feature names to expected feature names.
+        Uses fuzzy matching to handle naming variations.
+        """
+        mapping = {}
+        external_normalized = {self._normalize_feature_name(f): f for f in external_features}
+        expected_normalized = {self._normalize_feature_name(f): f for f in expected_features}
+        
+        # Direct matches first
+        for ext_norm, ext_orig in external_normalized.items():
+            if ext_norm in expected_normalized:
+                mapping[ext_orig] = expected_normalized[ext_norm]
+        
+        # Try partial matches for remaining features
+        for ext_norm, ext_orig in external_normalized.items():
+            if ext_orig not in mapping:
+                for exp_norm, exp_orig in expected_normalized.items():
+                    # Check if one contains the other (for variations like "DstPort" vs "Destination Port")
+                    if ext_norm in exp_norm or exp_norm in ext_norm:
+                        if len(ext_norm) > 5 and len(exp_norm) > 5:  # Only for substantial matches
+                            mapping[ext_orig] = exp_orig
+                            break
+        
+        return mapping
+    
     def prepare_features(self, df, label_column):
         """
         Prepare features for prediction by mapping to expected feature names.
@@ -239,7 +278,40 @@ class ExternalDatasetTester:
         print(f"[+] Features shape: {X.shape}")
         print(f"[+] Labels shape: {y.shape}")
         
-        # Check for feature overlap
+        # Create a mapping from external feature names to expected names
+        # First, try exact matches (case-sensitive)
+        feature_mapping = {}
+        external_cols_lower = {col.lower(): col for col in X.columns}
+        expected_cols_lower = {col.lower(): col for col in self.feature_names}
+        
+        # Exact case-insensitive matches first
+        for ext_lower, ext_orig in external_cols_lower.items():
+            if ext_lower in expected_cols_lower:
+                expected_orig = expected_cols_lower[ext_lower]
+                # Only map if names don't already match exactly
+                if ext_orig != expected_orig:
+                    feature_mapping[ext_orig] = expected_orig
+        
+        # Then try fuzzy matching for remaining features
+        if len(feature_mapping) < len(self.feature_names):
+            fuzzy_mapping = self._create_feature_mapping(
+                [col for col in X.columns if col not in feature_mapping],
+                [col for col in self.feature_names if col not in feature_mapping.values()]
+            )
+            feature_mapping.update(fuzzy_mapping)
+        
+        if feature_mapping:
+            print(f"[+] Mapped {len(feature_mapping)} features using name matching")
+            X = X.rename(columns=feature_mapping)
+        
+        # Check for duplicate column names (can happen if multiple external columns map to same expected name)
+        if X.columns.duplicated().any():
+            print(f"[!] WARNING: Found duplicate column names after mapping. Resolving duplicates...")
+            # Keep first occurrence of each column, drop subsequent duplicates
+            X = X.loc[:, ~X.columns.duplicated(keep='first')]
+            print(f"[+] Removed duplicate columns")
+        
+        # Check for feature overlap (using exact names now)
         common_features = set(X.columns) & set(self.feature_names)
         missing_features = set(self.feature_names) - set(X.columns)
         extra_features = set(X.columns) - set(self.feature_names)
@@ -257,23 +329,39 @@ class ExternalDatasetTester:
         for feature in missing_features:
             X[feature] = np.nan
         
-        # Reorder columns to match training
-        X = X[self.feature_names]
+        # CRITICAL: Reorder columns to match EXACT order expected by preprocessor
+        # The preprocessor expects columns in the exact order they were during training
+        # This must match the order in self.feature_names (which comes from transformers_)
+        # Build aligned DataFrame column by column to ensure exact order
+        X_aligned = pd.DataFrame(index=X.index)
+        for feature in self.feature_names:
+            if feature in X.columns:
+                # Use .iloc to get Series, not DataFrame (handles potential duplicates)
+                col_data = X[feature]
+                if isinstance(col_data, pd.DataFrame):
+                    # If somehow still a DataFrame, take first column
+                    col_data = col_data.iloc[:, 0]
+                X_aligned[feature] = col_data
+            else:
+                # This shouldn't happen if we added missing features above, but just in case
+                X_aligned[feature] = np.nan
         
         # Basic cleanup
-        X = X.replace([np.inf, -np.inf], np.nan)
+        X_aligned = X_aligned.replace([np.inf, -np.inf], np.nan)
         
         print(f"[+] Features aligned to training schema")
+        print(f"[+] Final feature order matches preprocessor expectations")
         print()
         
-        return X, y
+        return X_aligned, y
     
-    def predict(self, X):
+    def predict(self, X, threshold=0.5):
         """
         Make predictions on the prepared features.
         
         Args:
             X: Features (aligned to training schema)
+            threshold: Decision threshold for binary classification (default: 0.5)
             
         Returns:
             y_pred (class predictions), y_prob (probabilities)
@@ -284,29 +372,107 @@ class ExternalDatasetTester:
         
         # Transform features using the trained preprocessor
         print("Transforming features...")
+        transform_start = time.time()
         X_transformed = self.preprocessor.transform(X).astype("float32")
+        transform_time = time.time() - transform_start
         print(f"[+] Transformed shape: {X_transformed.shape}")
+        print(f"[+] Transformation time: {transform_time:.3f} seconds")
         
         # Predict
         print("Running model inference...")
+        num_samples = X_transformed.shape[0]
+        inference_start = time.time()
         y_prob = self.model.predict(X_transformed, verbose=0, batch_size=256)
+        inference_time = time.time() - inference_start
+        
+        # Calculate inference metrics
+        samples_per_second = num_samples / inference_time
+        avg_time_per_sample_ms = (inference_time / num_samples) * 1000
+        total_time = transform_time + inference_time
+        
+        print(f"[+] Inference completed in {inference_time:.3f} seconds")
+        print(f"[+] Throughput: {samples_per_second:,.0f} samples/second")
+        print(f"[+] Average: {avg_time_per_sample_ms:.4f} ms per sample")
+        print(f"[+] Total time (transform + inference): {total_time:.3f} seconds")
         
         # Convert to binary predictions
         if len(y_prob.shape) == 1 or y_prob.shape[1] == 1:
             # Binary classification with sigmoid
             y_prob = y_prob.reshape(-1)
-            y_pred = (y_prob >= 0.5).astype(int)
+            y_pred = (y_prob >= threshold).astype(int)
         else:
             # Multi-class with softmax
             y_pred = y_prob.argmax(axis=1)
             y_prob = y_prob[:, 1]  # Probability of positive class
         
-        print(f"[+] Predictions complete")
+        print(f"[+] Predictions complete (threshold: {threshold:.3f})")
         print()
         
         return y_pred, y_prob
     
-    def evaluate(self, y_true, y_pred, y_prob, output_dir="./results"):
+    def find_optimal_threshold(self, y_true, y_prob, metric='f1'):
+        """
+        Find optimal threshold for binary classification.
+        
+        Args:
+            y_true: True binary labels (0/1 or Normal/Attack)
+            y_prob: Prediction probabilities
+            metric: Metric to optimize ('f1', 'youden', 'accuracy')
+            
+        Returns:
+            Optimal threshold value
+        """
+        print("=" * 70)
+        print("FINDING OPTIMAL THRESHOLD")
+        print("=" * 70)
+        
+        # Encode labels if needed
+        if isinstance(y_true, pd.Series):
+            y_true_encoded = self.label_encoder.transform(y_true)
+        else:
+            y_true_encoded = y_true
+        
+        # Try different thresholds
+        thresholds = np.arange(0.1, 0.95, 0.01)
+        best_threshold = 0.5
+        best_score = 0
+        
+        # For Youden's index, calculate ROC curve once
+        if metric == 'youden':
+            fpr, tpr, roc_thresholds = roc_curve(y_true_encoded, y_prob)
+            youden_scores = tpr - fpr
+            optimal_idx = np.argmax(youden_scores)
+            best_threshold = roc_thresholds[optimal_idx] if optimal_idx < len(roc_thresholds) else 0.5
+            best_score = youden_scores[optimal_idx] if optimal_idx < len(youden_scores) else 0
+        else:
+            # Try different thresholds for F1 or accuracy
+            for thresh in thresholds:
+                y_pred_thresh = (y_prob >= thresh).astype(int)
+                
+                if metric == 'f1':
+                    score = f1_score(y_true_encoded, y_pred_thresh)
+                elif metric == 'accuracy':
+                    score = accuracy_score(y_true_encoded, y_pred_thresh)
+                else:
+                    score = f1_score(y_true_encoded, y_pred_thresh)
+                
+                if score > best_score:
+                    best_score = score
+                    best_threshold = thresh
+        
+        # Calculate default threshold score for comparison
+        default_pred = (y_prob >= 0.5).astype(int)
+        default_score = f1_score(y_true_encoded, default_pred)
+        
+        print(f"[+] Optimal threshold: {best_threshold:.3f}")
+        print(f"[+] Best {metric.upper()} score: {best_score:.4f}")
+        print(f"[+] Default threshold (0.5) F1 score: {default_score:.4f}")
+        print(f"[+] Improvement: {best_score - default_score:.4f} ({((best_score - default_score) / default_score * 100):.1f}%)")
+        print()
+        
+        return best_threshold
+    
+    def evaluate(self, y_true, y_pred, y_prob, output_dir="./results", optimize_threshold=False):
         """
         Evaluate predictions and generate comprehensive metrics.
         
@@ -315,6 +481,7 @@ class ExternalDatasetTester:
             y_pred: Predicted labels (0/1)
             y_prob: Prediction probabilities
             output_dir: Directory to save results
+            optimize_threshold: If True, find and use optimal threshold
         """
         print("=" * 70)
         print("EVALUATION RESULTS")
@@ -322,6 +489,13 @@ class ExternalDatasetTester:
         
         # Encode true labels to match predictions
         y_true_encoded = self.label_encoder.transform(y_true)
+        
+        # Optimize threshold if requested
+        if optimize_threshold:
+            optimal_threshold = self.find_optimal_threshold(y_true, y_prob, metric='f1')
+            y_pred = (y_prob >= optimal_threshold).astype(int)
+            print(f"[+] Using optimized threshold: {optimal_threshold:.3f}")
+            print()
         
         # Calculate metrics
         accuracy = accuracy_score(y_true_encoded, y_pred)

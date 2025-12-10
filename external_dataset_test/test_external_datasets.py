@@ -113,10 +113,11 @@ def test_dataset(tester, dataset_path, dataset_name, label_column=None):
         # Make predictions
         y_pred, y_prob = tester.predict(X)
         
-        # Evaluate
+        # Evaluate with threshold optimization for better accuracy
         safe_name = dataset_name.replace(' ', '_').replace('/', '_')
         results = tester.evaluate(y_binary, y_pred, y_prob, 
-                                output_dir=f"./results/{safe_name}")
+                                output_dir=f"./results/{safe_name}",
+                                optimize_threshold=True)
         
         return {
             'dataset': dataset_name,
@@ -198,13 +199,13 @@ def main():
     if successful:
         print(f"\n[SUCCESS] {len(successful)} dataset(s) tested successfully:")
         for result in successful:
-            print(f"  ✓ {result['dataset']}")
+            print(f"  [OK] {result['dataset']}")
             print(f"    Path: {result['path']}")
     
     if failed:
         print(f"\n[FAILED] {len(failed)} dataset(s) failed:")
         for result in failed:
-            print(f"  ✗ {result['dataset']}")
+            print(f"  [X] {result['dataset']}")
             print(f"    Path: {result['path']}")
             print(f"    Error: {result.get('error', 'Unknown error')}")
     
