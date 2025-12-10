@@ -38,7 +38,22 @@ kaggle.json
 *.docx
 *.pdf
 Technical_Report.md
+Technical_Report.pdf
+
+# Progress logs and documentation (not needed in repo)
+improving_accuracy_progress.md
+COMPLETE_ACCURACY_EVOLUTION.md
+cursor_*.md
 
 # Archived unused scripts (not part of main workflow)
 external_dataset_test/archive_unused/
+
+# Test folders (not part of main workflow)
+kaggle_test/
+
+# Output files (models are large - users can generate their own)
+output/*.keras
+output/*.joblib
+output/*.png
+output/*.csv
 

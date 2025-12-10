@@ -115,21 +115,55 @@ python notebook.py
 
 1. **Auto-downloads** the dataset from Kaggle if not present (using kagglehub)
 2. **Loads** three CSV files (Normal data, OVS attacks, Metasploitable attacks)
-3. **Preprocesses** the data (handles missing values, scaling, encoding)
-4. **Creates** a binary classification model (Normal vs Attack)
-5. **Trains** a neural network using TensorFlow/Keras
-6. **Evaluates** performance with confusion matrix and classification report
-7. **Visualizes** training curves (accuracy/loss over epochs)
-8. **Analyzes** feature importance using permutation importance
-9. **Saves** the trained model, preprocessing pipeline, and visualizations
+3. **Applies feature selection** using a three-tier pipeline:
+   - Removes identifiers, targets, and constant features
+   - Filters by variance, missing data, and correlation
+   - Selects top 40 features using mutual information
+4. **Preprocesses** the data (handles missing values, scaling, encoding)
+5. **Creates** a binary classification model (Normal vs Attack)
+6. **Trains** a neural network using TensorFlow/Keras with class weighting
+7. **Evaluates** performance with confusion matrix and classification report
+8. **Visualizes** training curves (accuracy/loss over epochs)
+9. **Analyzes** feature importance using permutation importance
+10. **Saves** the trained model, preprocessing pipeline, and visualizations
+
+## Feature Selection
+
+The model uses a comprehensive three-tier feature selection pipeline to improve generalization and reduce overfitting:
+
+### Tier 1: Mandatory Drops
+- Removes identifiers: `Flow ID`, `Src IP`, `Dst IP`, `Timestamp`
+- Removes target labels: `Label`, `LabelBinary`
+- Removes metadata: `__source__`
+
+### Tier 2: Statistical Filtering
+- **Variance Threshold:** Removes features with variance < 0.01 (near-constant features)
+- **Missing Data:** Removes features with >50% missing values
+- **Correlation:** Removes highly correlated features (threshold: 0.90)
+
+### Tier 3: Predictive Power Selection
+- **Method:** Mutual Information (captures non-linear relationships)
+- **Features Selected:** Top 40 features ranked by predictive power
+- **Rationale:** Balances model complexity with generalization ability
+
+The selected features are saved to `./output/feature_selection_scores.csv` for analysis.
 
 ## Model Architecture
 
-- Input Layer (size depends on features)
-- Dense Layer: 128 units (ReLU) + Dropout (0.1)
-- Dense Layer: 256 units (ReLU) + Dropout (0.1)
-- Dense Layer: 128 units (ReLU) + Dropout (0.1)
-- Output Layer: Binary classification (Sigmoid)
+The model uses a deep neural network with the following architecture:
+
+- **Input Layer:** 40 features (selected via mutual information feature selection)
+- **Dense Layer 1:** 128 units (ReLU activation) + Dropout (0.1)
+- **Dense Layer 2:** 256 units (ReLU activation) + Dropout (0.1)
+- **Dense Layer 3:** 128 units (ReLU activation) + Dropout (0.1)
+- **Output Layer:** 1 unit (Sigmoid activation) for binary classification
+
+**Training Configuration:**
+- Optimizer: Adam (learning rate: 1e-4)
+- Loss: Binary crossentropy
+- Batch size: 128
+- Epochs: 30 (with early stopping)
+- Class weights: Balanced to handle imbalanced dataset
 
 ## Training Results
 
@@ -502,16 +536,20 @@ If the model doesn't reach high accuracy:
 - Ensure all three CSV files are loaded correctly
 - Check that the data preprocessing completed without errors
 - Verify no columns have all missing values
+- Review feature selection output in `./output/feature_selection_scores.csv`
+- Try adjusting feature selection parameters in `notebook.py` (lines 91-100)
 
 ## Project Structure
 
 ```
 Project/
 ├── notebook.py              # Main training script
+├── notebook.ipynb           # Jupyter notebook version
+├── feature_selection.py     # Feature selection module
 ├── visualize.py             # Visualization generation script
 ├── requirements.txt         # Python dependencies
 ├── README.md               # This file
-├── data/                   # Dataset directory
+├── data/                   # Dataset directory (auto-downloaded)
 │   └── InSDN_DatasetCSV/
 │       ├── Normal_data.csv
 │       ├── OVS.csv
@@ -521,10 +559,12 @@ Project/
     ├── best_model.keras
     ├── preprocess.joblib
     ├── label_encoder.joblib
+    ├── feature_selection_scores.csv
     ├── confusion_matrix.png
     ├── roc_curve.png
     ├── precision_recall_curve.png
     ├── class_distribution.png
+    ├── training_curves.png
     ├── feature_importance.png
     └── feature_importance.csv
 ```
