@@ -39,3 +39,6 @@ kaggle.json
 *.pdf
 Technical_Report.md
 
+# Archived unused scripts (not part of main workflow)
+external_dataset_test/archive_unused/
+

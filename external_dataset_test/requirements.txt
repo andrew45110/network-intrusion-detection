@@ -1,0 +1,25 @@
+# External Dataset Testing - Python Dependencies
+# ================================================
+
+# Core ML/DL frameworks
+tensorflow>=2.10.0
+numpy>=1.23.0
+pandas>=1.5.0
+scikit-learn>=1.2.0
+
+# Serialization
+joblib>=1.2.0
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.12.0
+
+# Parquet file support (for CIC-DDoS2019 and other modern datasets)
+pyarrow>=10.0.0
+
+# Optional: For automatic dataset downloads from Kaggle
+kagglehub>=0.3.0
+
+# Note: If you already have these installed in your main project,
+# you don't need to install them again - they're the same dependencies!
+

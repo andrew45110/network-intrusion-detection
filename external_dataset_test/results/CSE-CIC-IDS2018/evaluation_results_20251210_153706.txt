@@ -1,0 +1,24 @@
+======================================================================
+EXTERNAL DATASET EVALUATION RESULTS
+======================================================================
+
+Timestamp: 2025-12-10 15:37:06
+Test samples: 7948748
+
+Accuracy: 0.6651
+ROC AUC: 0.6625
+Average Precision: 0.9479
+
+Confusion Matrix:
+[[ 296510  279681]
+ [2382505 4990052]]
+
+Classification Report:
+              precision    recall  f1-score   support
+
+      Attack     0.1107    0.5146    0.1822    576191
+      Normal     0.9469    0.6768    0.7894   7372557
+
+    accuracy                         0.6651   7948748
+   macro avg     0.5288    0.5957    0.4858   7948748
+weighted avg     0.8863    0.6651    0.7454   7948748

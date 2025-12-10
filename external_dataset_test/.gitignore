@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Data files (can be large)
+external_data/*.csv
+external_data/*.txt
+external_data/*.zip
+external_data/*.gz
+external_data/*.tar
+external_data/*.tar.gz
+!external_data/README.txt
+
+# Results (generated files)
+results/*.png
+results/*.txt
+results/*.csv
+!results/README.txt
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+

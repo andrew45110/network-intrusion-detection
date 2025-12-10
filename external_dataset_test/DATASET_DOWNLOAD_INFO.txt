@@ -1,0 +1,98 @@
+DATASET DOWNLOAD - NO MANUAL WORK REQUIRED!
+===========================================
+
+IMPORTANT: You DO NOT need to download datasets manually!
+
+The download_datasets.py script handles everything automatically.
+
+
+HOW IT WORKS:
+=============
+
+1. Run the script:
+   
+   python download_datasets.py
+
+2. Select a dataset from the menu (1-4):
+
+   [1] CIC-IDS2017      - ~50MB  (DDoS attacks)
+   [2] UNSW-NB15        - ~200MB (Modern attacks)
+   [3] NSL-KDD          - ~20MB  (Classic benchmark)
+   [4] CSE-CIC-IDS2018  - ~100MB (Realistic traffic)
+
+3. The script automatically:
+   
+   [+] Downloads from Kaggle
+   [+] Extracts the files
+   [+] Places them in ./external_data/
+   [+] Tells you which file to use
+
+4. That's it! You're ready to run:
+   
+   python test_external.py
+
+
+REQUIREMENTS:
+=============
+
+For automatic downloading, you need:
+
+1. Kaggle API credentials (one-time setup):
+   
+   a. Go to: https://www.kaggle.com/settings
+   b. Click "Create New API Token"
+   c. Save kaggle.json to:
+      Windows: C:\Users\<YourUsername>\.kaggle\kaggle.json
+      Linux/Mac: ~/.kaggle/kaggle.json
+
+2. kagglehub package:
+   
+   pip install kagglehub
+
+
+ALTERNATIVE - MANUAL DOWNLOAD:
+===============================
+
+If you prefer manual downloading OR if Kaggle API setup fails:
+
+1. Visit one of these URLs:
+   
+   - CIC-IDS2017: https://www.kaggle.com/datasets/cicdataset/cicids2017
+   - UNSW-NB15: https://www.kaggle.com/datasets/mrwellsdavid/unsw-nb15
+   - NSL-KDD: https://www.kaggle.com/datasets/hassan06/nslkdd
+   - CSE-CIC-IDS2018: https://www.kaggle.com/datasets/solarmainframe/ids-intrusion-csv
+
+2. Click "Download" button
+
+3. Extract the ZIP file
+
+4. Copy the CSV file(s) to:
+   
+   ./external_data/
+
+5. Run test_external.py
+
+
+RECOMMENDED FIRST TEST:
+=======================
+
+Dataset: CIC-IDS2017
+Why: Most similar to your InSDN training data
+Size: ~50MB (smallest/fastest)
+Method: Run download_datasets.py and select option [1]
+
+
+SUMMARY:
+========
+
+Question: "Do I have to download the datasets myself?"
+Answer:  NO! The script does it automatically.
+
+Just run:
+  python download_datasets.py
+  
+Select a dataset, wait for download, then run:
+  python test_external.py
+
+The script handles all the downloading, extraction, and file placement!
+

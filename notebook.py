@@ -12,6 +12,7 @@ print("TensorFlow:", tf.__version__)
 print("GPUs:", tf.config.list_physical_devices("GPU"))
 
 import pandas as pd
+from feature_selection import feature_selection_pipeline
 
 # Auto-download dataset if not present
 data_dir = "./data/InSDN_DatasetCSV"
@@ -28,7 +29,7 @@ if not os.path.exists(data_dir):
         # Copy to local data directory
         os.makedirs("./data", exist_ok=True)
         shutil.copytree(source_path, data_dir)
-        print(f"✓ Dataset downloaded and copied to {data_dir}")
+        print(f"✓ Dataset downloaded and copied to {data_dir}")")
     except ImportError:
         print("ERROR: kagglehub not installed. Install with: pip install kagglehub")
         print("Or manually download the dataset from: https://www.kaggle.com/datasets/badcodebuilder/insdn-dataset")
@@ -78,31 +79,31 @@ print(df[LABEL_COL].value_counts())
 
 # use the binary label we just created; change to "Label" if we want multi-class later
 LABEL_COL = "LabelBinary"
-
-# columns we never want as features
-drop_cols = [
-    LABEL_COL,     # prediction target
-    "Label",       # original label column (multi-class)
-    "__source__",  # provenance
-    "Flow ID",
-    "Src IP",
-    "Dst IP",
-    "Timestamp",
-]
-
-# keep only columns that actually exist
-drop_cols = [c for c in drop_cols if c in df.columns]
-
-X = df.drop(columns=drop_cols)
 y = df[LABEL_COL]
 
-# optional but safe: drop all-constant columns
-nunique = X.nunique(dropna=False)
-const_cols = nunique[nunique <= 1].index.tolist()
-if const_cols:
-    X = X.drop(columns=const_cols)
+# ============================================================
+# FEATURE SELECTION PIPELINE
+# ============================================================
+print("\n" + "=" * 60)
+print("APPLYING FEATURE SELECTION")
+print("=" * 60)
 
-print("Dropped constant cols:", len(const_cols))
+X, feature_scores, selection_summary = feature_selection_pipeline(
+    df, y,
+    variance_threshold=0.01,        # Remove very low variance features
+    missing_threshold=0.5,         # Remove features with >50% missing
+    correlation_threshold=0.90,    # Remove highly correlated (stricter for overfitting)
+    n_features=25,                 # Keep top 25 features
+    method='mutual_info',          # Use mutual information (good for non-linear)
+    random_state=42,
+    verbose=True
+)
+
+# Save feature selection results
+os.makedirs("./output", exist_ok=True)
+feature_scores.to_csv('./output/feature_selection_scores.csv', index=False)
+print(f"\nSaved feature selection scores to ./output/feature_selection_scores.csv")
+
 print("Remaining X shape:", X.shape)
 
 from sklearn.model_selection import train_test_split

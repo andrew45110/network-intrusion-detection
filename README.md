@@ -66,26 +66,48 @@ Your project will look like this after setup:
 
 ```
 Project/
-├── notebook.py
-├── requirements.txt
-├── README.md
-├── data/                        (created automatically on first run)
+├── notebook.py              # Python script version (for automation)
+├── notebook.ipynb           # Jupyter notebook version (for interactive use)
+├── feature_selection.py     # Feature selection module
+├── visualize.py             # Visualization generation script
+├── requirements.txt         # Python dependencies
+├── README.md               # This file
+├── data/                   # Dataset directory (created automatically on first run)
 │   └── InSDN_DatasetCSV/
 │       ├── Normal_data.csv
 │       ├── OVS.csv
 │       └── metasploitable-2.csv
-└── output/                      (created during training)
+└── output/                 # Generated after training
 ```
 
 ## Running the Code
 
-After installing dependencies and setting up Kaggle credentials, simply run:
+You have two options:
+
+### Option 1: Jupyter Notebook (Recommended for Interactive Use)
+
+```bash
+jupyter notebook notebook.ipynb
+```
+
+**Benefits:**
+- See outputs inline
+- Run cells individually
+- Better for experimentation
+- Visualizations display directly
+
+### Option 2: Python Script (For Automation)
 
 ```bash
 python notebook.py
 ```
 
-**First run:** The script will automatically download the dataset (~21 MB compressed, ~140 MB extracted) if not present.
+**Benefits:**
+- Run from command line
+- Easy to automate/script
+- Good for CI/CD pipelines
+
+**First run:** Either method will automatically download the dataset (~21 MB compressed, ~140 MB extracted) if not present.
 
 **Output:** The trained model and preprocessing objects will be saved in the `./output/` folder.
 
@@ -471,7 +493,7 @@ print(predicted_classes)  # 'Attack' or 'Normal'
 
 ### Out of Memory Error
 If you encounter memory issues during training:
-- Reduce the batch size in `notebook.py` (line 194) from 128 to 64 or 32
+- Reduce the batch size (line 222 in `notebook.py` or in the training cell) from 128 to 64 or 32
 - Close other applications to free up RAM
 - Use a subset of the data for initial testing
 
