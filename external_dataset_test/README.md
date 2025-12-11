@@ -393,7 +393,7 @@ python convert_parquet_to_csv.py input.parquet
 
 ## 📦 Recommended External Datasets
 
-**Note:** We only recommend datasets that have been tested and achieve **≥75% accuracy** with our model. Datasets with different feature sets (e.g., UNSW-NB15, NSL-KDD) have been tested previously but achieved low accuracy due to feature incompatibility.
+**Note:** We only recommend datasets that have been tested and achieve **≥74% accuracy** with our model. These datasets share similar feature characteristics with InSDN.
 
 ### 1. CSE-CIC-IDS2018 ⭐ RECOMMENDED - TESTED
 - **Size:** ~100MB
@@ -547,7 +547,6 @@ All required packages are in `requirements.txt`:
 ## 💡 Tips
 
 1. **Start with CSE-CIC-IDS2018 or CIC-IDS2017** - Only these are recommended (74%+ accuracy, tested)
-2. **Avoid UNSW-NB15 and NSL-KDD** - Feature incompatibility leads to low accuracy (<65%)
 2. **Use threshold optimization** - Default 0.5 may not be optimal; our model uses 0.100 for CSE-CIC-IDS2018
 3. **Check feature overlap** - The script shows how many features match (aim for 50%+ overlap)
 4. **Compare results** - Our model achieves 74-75% accuracy on external data (vs 99.96% training)
@@ -580,7 +579,7 @@ This model is highly specific to the **40 features** it was trained on from InSD
 | **Feature Overlap** | >75% (30+/40 features) | <50% (<20/40 features) |
 | **Feature Names** | Similar naming conventions | Completely different names |
 | **Distributions** | Similar statistical properties | Different scales/ranges |
-| **Example** | CSE-CIC-IDS2018 (74.75% ✅) | UNSW-NB15, NSL-KDD (<65% ❌) |
+| **Example** | CSE-CIC-IDS2018 (74.75% ✅), CIC-IDS2017 (74.39% ✅) | Datasets with <50% feature overlap (<65% ❌) |
 
 ### What Happens with Incompatible Features?
 
@@ -612,7 +611,7 @@ This model is highly specific to the **40 features** it was trained on from InSD
 
 This model is designed for datasets that share similar network flow characteristics with InSDN. For best results:
 - Use datasets from CIC-IDS family (CIC-IDS2017, CIC-IDS2018) - **recommended** ✅
-- Datasets with different feature schemas (UNSW-NB15, NSL-KDD) may not work well - **experimental** ⚠️
+- Datasets with different feature schemas may not work well if feature overlap is <50%
 
 **To determine compatibility:** The testing script reports feature overlap percentage - aim for >50% overlap for reasonable performance.
 
