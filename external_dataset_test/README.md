@@ -46,7 +46,7 @@ This will:
 2. Place them in `./external_data/` folder
 3. Supported datasets:
    - **CSE-CIC-IDS2018**: `02-20-2018.csv`
-   - **CIC-IDS2017 Friday DDoS**: `Friday-DDos-MAPPED.csv`
+   - **CIC-IDS2017 Friday Afternoon DDoS**: `Friday-DDos-MAPPED.csv`
 
 ### Step 3: Test Your Model (Automatic Detection)
 
@@ -105,8 +105,9 @@ Classification Report:
       Normal     1.0000    0.7278    0.8424   7372557
 ```
 
-### CIC-IDS2017 Friday DDoS Dataset
-**Dataset:** CIC-IDS2017 Friday DDoS (Friday-DDos-MAPPED.csv)  
+### CIC-IDS2017 Friday Afternoon DDoS Dataset
+**Dataset:** CIC-IDS2017 Friday Afternoon DDoS (Friday-DDos-MAPPED.csv)  
+**Source:** Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv (feature-mapped)  
 **Test Samples:** 225,745  
 **Last Updated:** December 11, 2025
 
@@ -392,32 +393,31 @@ python convert_parquet_to_csv.py input.parquet
 
 ## 📦 Recommended External Datasets
 
-### 1. CIC-IDS2017
+**Note:** We only recommend datasets that have been tested and achieve **≥75% accuracy** with our model. Datasets with different feature sets (e.g., UNSW-NB15, NSL-KDD) have been tested previously but achieved low accuracy due to feature incompatibility.
+
+### 1. CSE-CIC-IDS2018 ⭐ RECOMMENDED - TESTED
+- **Size:** ~100MB
+- **Download:** https://www.kaggle.com/datasets/solarmainframe/ids-intrusion-csv
+- **Best for:** Realistic multi-day traffic, large-scale validation
+- **File to use:** `02-20-2018.csv` or `train_data.csv`
+- **Our Results:** **74.75% accuracy**, **100% attack recall** on 7.9M samples ✅
+- **ROC AUC:** 0.8499
+- **Status:** ✅ **Recommended** - Best compatibility with InSDN features
+
+### 2. CIC-IDS2017 Friday Afternoon DDoS ⭐ RECOMMENDED - TESTED
 - **Size:** ~50MB
 - **Download:** https://www.kaggle.com/datasets/cicdataset/cicids2017
 - **Best for:** Modern DDoS attacks
-- **File to use:** `Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv`
+- **File to use:** `Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv` (must be feature-mapped to `Friday-DDos-MAPPED.csv`)
+- **Dataset Details:** Friday afternoon DDoS attack traffic from CIC-IDS2017
+- **Our Results:** **74.39% accuracy** on 225,745 samples ✅
+- **ROC AUC:** 0.7803
+- **Average Precision:** 0.7197
+- **Attack Precision:** 82.11%
+- **Attack Recall:** 70.13%
+- **Status:** ✅ **Recommended** - Good feature overlap with InSDN, tested with Friday afternoon data
 
-### 2. UNSW-NB15
-- **Size:** ~200MB
-- **Download:** https://www.kaggle.com/datasets/mrwellsdavid/unsw-nb15
-- **Best for:** Comprehensive modern attacks
-- **File to use:** `UNSW-NB15_1.csv`
-
-### 3. NSL-KDD
-- **Size:** ~20MB
-- **Download:** https://www.kaggle.com/datasets/hassan06/nslkdd
-- **Best for:** Classic benchmark testing
-- **File to use:** `KDDTest+.txt` or `KDDTest+.csv`
-
-### 4. CSE-CIC-IDS2018 ⭐ TESTED
-- **Size:** ~100MB
-- **Download:** https://www.kaggle.com/datasets/solarmainframe/ids-intrusion-csv
-- **Best for:** Realistic multi-day traffic
-- **File to use:** `02-20-2018.csv` or `train_data.csv`
-- **Our Results:** **74.75% accuracy**, **100% attack recall** on 7.9M samples (see Results section above)
-
-### 5. CIC-DDoS2019 ⭐ NEW
+### 3. CIC-DDoS2019 ⭐ EXPERIMENTAL
 - **Size:** ~50GB total (3-5GB per attack type)
 - **Format:** Parquet files
 - **Download:** https://www.unb.ca/cic/datasets/ddos-2019.html
@@ -425,6 +425,10 @@ python convert_parquet_to_csv.py input.parquet
 - **Files:** `DrDoS_DNS.parquet`, `Syn.parquet`, `WebDDoS.parquet`, etc.
 - **Guide:** See `DDOS2019_GUIDE.md` for complete instructions
 - **Helper script:** `test_ddos2019.py` for batch testing
+- **Status:** ⚠️ **Not yet tested** - Requires feature mapping verification
+
+---
+
 
 ## 🎯 How It Works
 
@@ -542,7 +546,8 @@ All required packages are in `requirements.txt`:
 
 ## 💡 Tips
 
-1. **Start with CSE-CIC-IDS2018 or CIC-IDS2017** - Both tested and achieving 74%+ accuracy
+1. **Start with CSE-CIC-IDS2018 or CIC-IDS2017** - Only these are recommended (74%+ accuracy, tested)
+2. **Avoid UNSW-NB15 and NSL-KDD** - Feature incompatibility leads to low accuracy (<65%)
 2. **Use threshold optimization** - Default 0.5 may not be optimal; our model uses 0.100 for CSE-CIC-IDS2018
 3. **Check feature overlap** - The script shows how many features match (aim for 50%+ overlap)
 4. **Compare results** - Our model achieves 74-75% accuracy on external data (vs 99.96% training)
@@ -557,6 +562,59 @@ Testing on external data reveals:
 - ✅ **Robustness**: Can it handle different network environments?
 - ✅ **Overfitting**: Was your 99.96% accuracy genuine or lucky?
 - ✅ **Real-world readiness**: Will it work in production?
+
+## 🔍 Model Specificity and Limitations
+
+### Feature-Specific Model
+
+This model is highly specific to the **40 features** it was trained on from InSDN:
+
+- **Trained on:** Exactly 40 features selected via Mutual Information from InSDN dataset
+- **Expects:** Same 40 features with similar distributions
+- **Limitation:** Cannot work well with datasets that have fundamentally different feature sets
+
+### Why Feature Compatibility Matters
+
+| Aspect | Compatible Datasets | Incompatible Datasets |
+|--------|---------------------|----------------------|
+| **Feature Overlap** | >75% (30+/40 features) | <50% (<20/40 features) |
+| **Feature Names** | Similar naming conventions | Completely different names |
+| **Distributions** | Similar statistical properties | Different scales/ranges |
+| **Example** | CSE-CIC-IDS2018 (74.75% ✅) | UNSW-NB15, NSL-KDD (<65% ❌) |
+
+### What Happens with Incompatible Features?
+
+1. **Missing Features:** Filled with NaN → imputed with training statistics (median/mode)
+   - If 30/40 features are missing, model relies heavily on imputed values
+   - Model hasn't seen these patterns during training
+
+2. **Different Distributions:** Features may have different scales/ranges
+   - Preprocessor scales using training statistics
+   - May not align with external dataset characteristics
+
+3. **Low Feature Overlap:** <50% overlap typically results in poor performance
+   - Model was trained on specific feature relationships
+   - Missing features break these learned patterns
+
+### Can Improvements Help?
+
+**What helps:**
+- ✅ **Feature alignment** - Maps similar features even with name differences
+- ✅ **Threshold optimization** - Can improve even with limited features (if probabilities are meaningful)
+- ✅ **Better preprocessing** - Handles missing features more gracefully
+
+**What doesn't help:**
+- ❌ **Fundamental feature incompatibility** - If datasets measure different things
+- ❌ **Very low feature overlap** (<30%) - Too much information loss
+- ❌ **Different feature semantics** - Same name but different meaning
+
+### The Bottom Line
+
+This model is designed for datasets that share similar network flow characteristics with InSDN. For best results:
+- Use datasets from CIC-IDS family (CIC-IDS2017, CIC-IDS2018) - **recommended** ✅
+- Datasets with different feature schemas (UNSW-NB15, NSL-KDD) may not work well - **experimental** ⚠️
+
+**To determine compatibility:** The testing script reports feature overlap percentage - aim for >50% overlap for reasonable performance.
 
 ---
 
